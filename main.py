@@ -29,6 +29,9 @@ class SlideManager:
     def get_current_slide(self):
         return self.slides[self.current_slide]
 
+    def get_remaining_slides(self):
+        return self.slides[self.current_slide + 1:]
+
 class SpeechTimer:
     def __init__(self, language='en'):
         self.pyphen_dic = pyphen.Pyphen(lang=language)
@@ -74,6 +77,8 @@ class PresentationApp(QMainWindow):
         self.text_display.mouseDoubleClickEvent = self.double_click_event
 
         self.time_label = QLabel('Remaining time: 0.0s')
+        self.total_time_label = QLabel('Total remaining time: 0.0s')
+
 
         control_layout = QHBoxLayout()
 
@@ -99,7 +104,11 @@ class PresentationApp(QMainWindow):
 
         self.layout.addWidget(self.slide_label)
         self.layout.addWidget(self.text_display)
-        self.layout.addWidget(self.time_label)
+        time_layout = QHBoxLayout()
+        time_layout.addWidget(self.time_label)
+        time_layout.addWidget(self.total_time_label, alignment=Qt.AlignRight)
+        self.layout.addLayout(time_layout)
+
         self.layout.addLayout(control_layout)
 
         self.word_timer = QTimer()
@@ -143,8 +152,17 @@ class PresentationApp(QMainWindow):
     def update_remaining_time(self):
         slide = self.slide_manager.get_current_slide()
         remaining_words = slide.words[self.current_word_index:]
-        remaining_time = self.timer.estimate_text_time(remaining_words)
-        self.time_label.setText(f'Remaining time: {remaining_time:.1f}s')
+        remaining_slide_time = self.timer.estimate_text_time(remaining_words)
+        self.time_label.setText(f'Remaining slide time: {remaining_slide_time:.1f}s')
+
+        remaining_slides_time = sum(
+            self.timer.estimate_text_time(s.words) for s in self.slide_manager.get_remaining_slides()
+        )
+        total_remaining_time = remaining_slide_time + remaining_slides_time
+
+        minutes = int(total_remaining_time // 60)
+        seconds = int(total_remaining_time % 60)
+        self.total_time_label.setText(f'Total remaining time: {minutes:02d}:{seconds:02d}')
 
     def advance_word(self):
         slide = self.slide_manager.get_current_slide()
