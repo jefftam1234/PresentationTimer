@@ -2,6 +2,8 @@
 
 A Python application designed to assist users with scripted presentations. It highlights the script in real-time based on natural speech pacing and provides an estimated countdown timer for remaining speech duration.
 
+![Main App](screenshot.png)
+
 ---
 
 ## Features
