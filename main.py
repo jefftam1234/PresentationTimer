@@ -3,7 +3,7 @@ import os
 import pyphen
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QTextEdit,
-    QPushButton, QLabel, QFileDialog, QHBoxLayout
+    QPushButton, QLabel, QFileDialog, QHBoxLayout, QComboBox
 )
 from PyQt5.QtCore import Qt, QTimer
 
@@ -33,10 +33,14 @@ class SpeechTimer:
     def __init__(self, language='en'):
         self.pyphen_dic = pyphen.Pyphen(lang=language)
         self.average_syllable_duration = 0.2  # Avg. human speech ~5 syllables/sec
+        self.speed_factor = 1.0
 
     def estimate_word_time(self, word):
         syllables = self.pyphen_dic.inserted(word).count('-') + 1
-        return syllables * self.average_syllable_duration
+        base_time = syllables * self.average_syllable_duration
+        if word.endswith(('.', ',')):
+            base_time += 0.2  # Additional pause for punctuation
+        return base_time / self.speed_factor
 
     def estimate_text_time(self, words):
         return sum(self.estimate_word_time(word) for word in words)
@@ -82,9 +86,16 @@ class PresentationApp(QMainWindow):
         self.next_button = QPushButton('Next Slide')
         self.next_button.clicked.connect(self.next_slide)
 
+        self.speed_selector = QComboBox()
+        self.speed_selector.addItems(['-20%', '-10%', '0%', '+10%', '+20%'])
+        self.speed_selector.setCurrentIndex(2)
+        self.speed_selector.currentIndexChanged.connect(self.update_speed)
+
         control_layout.addWidget(self.prev_button)
         control_layout.addWidget(self.play_pause_button)
         control_layout.addWidget(self.next_button)
+        control_layout.addWidget(QLabel('Speed:'))
+        control_layout.addWidget(self.speed_selector)
 
         self.layout.addWidget(self.slide_label)
         self.layout.addWidget(self.text_display)
@@ -93,6 +104,11 @@ class PresentationApp(QMainWindow):
 
         self.word_timer = QTimer()
         self.word_timer.timeout.connect(self.advance_word)
+
+    def update_speed(self):
+        speed_mapping = {'-20%': 0.8, '-10%': 0.9, '0%': 1.0, '+10%': 1.1, '+20%': 1.2}
+        self.timer.speed_factor = speed_mapping[self.speed_selector.currentText()]
+        self.update_remaining_time()
 
     def double_click_event(self, event):
         cursor = self.text_display.cursorForPosition(event.pos())
@@ -145,13 +161,9 @@ class PresentationApp(QMainWindow):
 
     def toggle_play_pause(self):
         if not self.is_playing:
-            slide = self.slide_manager.get_current_slide()
-            if self.current_word_index >= len(slide.words):
-                self.current_word_index = 0
-            duration_ms = int(self.timer.estimate_word_time(slide.words[self.current_word_index]) * 1000)
-            self.word_timer.start(duration_ms)
             self.is_playing = True
             self.play_pause_button.setText('Pause')
+            self.advance_word()
         else:
             self.word_timer.stop()
             self.is_playing = False
