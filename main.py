@@ -76,6 +76,9 @@ class PresentationApp(QMainWindow):
         self.text_display.setReadOnly(True)
         self.text_display.mouseDoubleClickEvent = self.double_click_event
 
+        self.current_font_size = 12  # Starting default font size
+        self.text_display.setStyleSheet(f'font-size: {self.current_font_size}pt;')
+
         self.time_label = QLabel('Remaining time: 0.0s')
         self.total_time_label = QLabel('Total remaining time: 0.0s')
 
@@ -102,7 +105,17 @@ class PresentationApp(QMainWindow):
         control_layout.addWidget(QLabel('Speed:'))
         control_layout.addWidget(self.speed_selector)
 
-        self.layout.addWidget(self.slide_label)
+        # self.layout.addWidget(self.slide_label)
+        self.instruction_label = QLabel('Ctrl+Scroll: Font Size | Space: Play/Pause after starting')
+        self.instruction_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        # Create a horizontal layout for top labels
+        top_layout = QHBoxLayout()
+        top_layout.addWidget(self.slide_label)
+        top_layout.addWidget(self.instruction_label)
+
+        # Replace previous line self.layout.addWidget(self.slide_label) with:
+        self.layout.addLayout(top_layout)
         self.layout.addWidget(self.text_display)
         time_layout = QHBoxLayout()
         time_layout.addWidget(self.time_label)
@@ -129,6 +142,24 @@ class PresentationApp(QMainWindow):
             self.current_word_index = slide.words.index(selected_word)
             self.highlight_words()
             self.update_remaining_time()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Space:
+            if not self.is_playing:
+                # If not playing, always reset the word_timer and start from current position
+                self.toggle_play_pause()
+            else:
+                self.toggle_play_pause()
+
+    def wheelEvent(self, event):
+        if event.modifiers() == Qt.ControlModifier:
+            delta = event.angleDelta().y() / 120  # 1 step = 120 units
+            self.current_font_size += int(delta)
+            self.current_font_size = max(5, min(20, self.current_font_size))  # limits font size between 5 and 20 pt
+            self.text_display.setStyleSheet(f'font-size: {self.current_font_size}pt;')
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     def update_slide_display(self):
         self.current_word_index = 0
